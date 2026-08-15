@@ -135,6 +135,7 @@ enum llm_type {
     LLM_TYPE_31B_A3_5B,
     LLM_TYPE_32B_A9B, // Granite4 Hybrid
     LLM_TYPE_35B_A3B, // Qwen3.5
+    LLM_TYPE_39B_A5B, // G9v3
     LLM_TYPE_48B_A3B, // Kimi Linear
     LLM_TYPE_75B_A9B, // Nemotron 3 Puzzle
     LLM_TYPE_80B_A3B, // Qwen3 Next

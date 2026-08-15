@@ -331,6 +331,10 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe, const 
     } else if (arch == LLM_ARCH_QWEN3TTS) {
         //n_vocab = 4096; // must be >= the hard-coded codec head size (3072)
         n_vocab = 3072; // TODO: should be 4096, but user code cannot get `n_vocab_out` yet [TAG_LLAMA_N_VOCAB_OUT]
+    } else if (arch == LLM_ARCH_G9V3) {
+        // G9v3's 128-dim heads make Q wider than its hidden state.
+        n_embd = 128;
+        n_head = 2;
     } else if (arch == LLM_ARCH_HRM_TEXT) {
         n_layer = 6; // 1 layer per stack x 2 h-cycles x (2 l-cycles + 1) cache slots
     } else if (arch == LLM_ARCH_INKLING2 || arch == LLM_ARCH_INKLING2_LOOP) {
@@ -475,6 +479,10 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe, const 
     } else if (arch == LLM_ARCH_MINIMAX_M3) {
         // partial rotary: n_rot must not exceed the indexer key length (64)
         ms.add_kv(LLM_KV_ROPE_DIMENSION_COUNT,       uint32_t(64));
+    } else if (arch == LLM_ARCH_G9V3) {
+        ms.add_kv(LLM_KV_ATTENTION_KEY_LENGTH,   uint32_t(128));
+        ms.add_kv(LLM_KV_ATTENTION_VALUE_LENGTH, uint32_t(128));
+        ms.add_kv(LLM_KV_ROPE_DIMENSION_COUNT,   uint32_t(128));
     }
     if (arch == LLM_ARCH_SENSENOVA_U1) {
         ms.add_kv(LLM_KV_ROPE_FREQ_BASE_SPATIAL, 10000.0f);
@@ -1201,6 +1209,7 @@ static bool moe_mandatory(const llm_arch arch) {
         case LLM_ARCH_BAILINGMOE3:
         case LLM_ARCH_DOTS1:
         case LLM_ARCH_AFMOE:
+        case LLM_ARCH_G9V3:
         case LLM_ARCH_BEAM:
         case LLM_ARCH_ERNIE4_5:
         case LLM_ARCH_ERNIE4_5_MOE:

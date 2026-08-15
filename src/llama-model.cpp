@@ -303,6 +303,8 @@ static llama_model * llama_model_mapping(llm_arch arch, const llama_model_params
             return new llama_model_afmoe(params);
         case LLM_ARCH_LAGUNA:
             return new llama_model_laguna(params);
+        case LLM_ARCH_G9V3:
+            return new llama_model_g9v3(params);
         case LLM_ARCH_RICURSIVE:
             return new llama_model_ricursive(params);
         case LLM_ARCH_ERNIE4_5:
@@ -1202,6 +1204,7 @@ const char * llm_type_name(llm_type type) {
         case LLM_TYPE_31B_A3_5B:     return "31B.A3.5B";
         case LLM_TYPE_32B_A9B:       return "32B.A9B";
         case LLM_TYPE_35B_A3B:       return "35B.A3B";
+        case LLM_TYPE_39B_A5B:       return "39B.A5B";
         case LLM_TYPE_48B_A3B:       return "48B.A3B";
         case LLM_TYPE_75B_A9B:       return "75B.A9B";
         case LLM_TYPE_80B_A3B:       return "80B.A3B";
@@ -4044,6 +4047,7 @@ llama_rope_type llama_model_rope_type(const llama_model * model) {
         case LLM_ARCH_PANGU_EMBED:
         case LLM_ARCH_AFMOE:
         case LLM_ARCH_LAGUNA:
+        case LLM_ARCH_G9V3:
         case LLM_ARCH_QWEN3NEXT:
         case LLM_ARCH_CLOVER_MOE:
         case LLM_ARCH_MIMO2:
