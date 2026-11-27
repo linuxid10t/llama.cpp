@@ -11,6 +11,51 @@
 
 ---
 
+## Haiku port
+
+This fork adds Haiku OS (x86_64) build support on top of upstream `ggml-org/llama.cpp`. Inference with the CPU and RPC backends has been verified working. The same change is proposed upstream in [ggml-org/llama.cpp#33168](https://github.com/ggml-org/llama.cpp/pull/33168). The port is a small set of surgical changes; details below so future maintainers and agents can re-apply or extend it after an upstream rebase.
+
+### Files changed and why
+
+| File | Change | Reason |
+| --- | --- | --- |
+| `common/download.cpp` | `#elif defined(__HAIKU__)` -> `#include <limits.h>` | Haiku has no `<sys/syslimits.h>`; the old fallback include breaks compilation. `<limits.h>` provides `PATH_MAX` (= 1024). |
+| `tools/server/CMakeLists.txt` | `if (CMAKE_SYSTEM_NAME STREQUAL "Haiku")` -> `server-context` links `network` PUBLIC | Haiku ships BSD sockets in `libnetwork`, not `libc`. `server-common.cpp` calls `inet_pton`. The guard is on `server-context` (`${TARGET}` in that file), not `llama-server`, so `tests/test-chat` and `test-server-component`, which link `server-context` directly, also resolve the symbol. |
+| `ggml/src/ggml-rpc/CMakeLists.txt` | Same Haiku guard -> `ggml-rpc` links `network` PRIVATE | RPC transport (`transport.cpp`) calls `socket`/`connect`/`send`/`recv`. |
+| `vendor/cpp-httplib/CMakeLists.txt` | Same Haiku guard -> `httplib` links `network` PUBLIC | httplib is the HTTP library shared by the server; consumers need `network` transitively. |
+| `tools/mtmd/mtmd-helper.cpp` | `#define MA_NO_THREADING` next to the other `MA_NO_*` defines | mtmd is the only miniaudio user and only decodes audio (`MA_NO_DEVICE_IO` is already set), so miniaudio's thread/mutex code is unused. Without this define, unoptimized builds still reference `pthread_attr_setinheritsched`, which Haiku declares in `pthread.h` but does not export from `libroot.so`, so linking fails. This replaces an earlier patch to `vendor/miniaudio/miniaudio.h`; the vendored file is no longer modified. |
+| `docs/build.md` | Haiku entry in the CPU build section | Build instructions for users. |
+
+Files that needed patches in earlier versions of this port but no longer do, because upstream refactored them: `common/arg.cpp` (the `PATH_MAX` include block was removed), `common/common.cpp` and `tools/rpc/rpc-server.cpp` (`fs_get_cache_directory()` now ends in an XDG `#else` branch that covers Haiku, instead of an `#error`).
+
+### Platform conventions for Haiku changes
+
+- **CMake platform test:** use `CMAKE_SYSTEM_NAME STREQUAL "Haiku"` (CMake sets this automatically on Haiku). Do **not** use a bare `if (HAIKU)` - there is no such built-in variable.
+- **Preprocessor symbol:** `__HAIKU__` is defined by gcc on Haiku.
+- **`PATH_MAX`:** available via `<limits.h>` (value 1024). Never include `<sys/syslimits.h>` - it does not exist on Haiku.
+- **Sockets:** any new target that uses the BSD sockets API must link `network` under the Haiku guard.
+- **`pthread_attr_setinheritsched`:** declared but not exported on Haiku. Avoid code paths that call it; prefer disabling the feature (as with `MA_NO_THREADING`) over patching vendored code.
+- **`mlock` / `_POSIX_MEMLOCK_RANGE`:** Haiku defines `_POSIX_MEMLOCK_RANGE` and provides `mlock()`, but does **not** define `RLIMIT_MEMLOCK`. Upstream already handles this at `src/llama-mmap.cpp` via an `__HAIKU__` guard in the `raw_lock` suggestion path - no change needed there.
+
+### Build and run
+
+```sh
+cmake -B build -S . -DGGML_RPC=ON
+cmake --build build -j$(nproc)
+
+# shared-lib build: set library path at run time
+LD_LIBRARY_PATH=build/bin ./build/bin/llama-cli -m model.gguf -p "Hello"
+```
+
+### Known limitations
+
+- CPU and RPC backends only - no GPU acceleration (no CUDA/Metal/Vulkan/HIP).
+- No CI coverage for Haiku; breakage is caught by building on Haiku manually.
+
+---
+
+---
+
 ## Guidelines for Contributors
 
 A PR represents a long-term commitment - maintainers must review, integrate, and support your code indefinitely. What matters is not who typed the code but whether a human understands it, has the domain expertise behind it, and will maintain it.

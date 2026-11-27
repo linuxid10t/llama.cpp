@@ -63,6 +63,35 @@ llama serve -hf ggml-org/Qwen3.5-0.8B-GGUF
     </tr>
 <table>
 
+## Haiku OS support
+
+This fork adds support for building and running llama.cpp on the [Haiku](https://www.haiku-os.org/) operating system (x86_64). Inference has been verified working with the CPU and RPC backends. The same change is proposed upstream in [ggml-org/llama.cpp#33168](https://github.com/ggml-org/llama.cpp/pull/33168).
+
+### Build
+
+Haiku puts the BSD sockets API in `libnetwork` rather than `libc`, and its POSIX headers differ slightly from Linux. The build works with the standard CMake flow:
+
+```sh
+cmake -B build -S . -DGGML_RPC=ON
+cmake --build build -j$(nproc)
+```
+
+Binaries are produced in `build/bin/`. Because the build produces shared libraries, run them with the library path set:
+
+```sh
+LD_LIBRARY_PATH=build/bin ./build/bin/llama-cli -m model.gguf -p "Hello"
+```
+
+### Limitations
+
+- **CPU only.** There are no Metal, CUDA, HIP, or Vulkan backends; only the CPU and RPC backends are available.
+- **No CI.** Haiku is not covered by upstream CI, so breakage is caught by building on Haiku manually.
+
+### Maintenance
+
+The Haiku port is carried as a small set of patches on top of upstream `ggml-org/llama.cpp`. When rebasing onto a new upstream release, re-apply the changes listed in [AGENTS.md](AGENTS.md#haiku-port) and re-check the platform guards, as upstream frequently refactors the affected files.
+
+
 ## Documentation
 
 #### Tools
